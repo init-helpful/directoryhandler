@@ -1,0 +1,2 @@
+/Users/andrewcummings/anaconda3/envs/ca-testgen/bin/python /Users/andrewcummings/Documents/Projects/Personal/directoryhelper/setup.py bdist_wheel
+twine upload dist/*
