@@ -2,8 +2,8 @@ from setuptools import setup, find_packages
 
 setup(
     name="directoryhandler",
-    version="0.1.0",
+    version="0.1.4",
     description="Local directory lookup and management",
-    install_requires=["jsondatahelper"],
-    packages=find_packages(),
+    install_requires=["lxml","jsondatahelper"],
+    py_modules=['directoryhandler'],package_dir={"":"src"}
 )

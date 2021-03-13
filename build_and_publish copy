@@ -1,2 +1,0 @@
-/Users/andrewcummings/anaconda3/envs/ca-testgen/bin/python /Users/andrewcummings/Documents/Projects/Personal/directoryhelper/setup.py sdist --formats=zip
-twine upload dist/*

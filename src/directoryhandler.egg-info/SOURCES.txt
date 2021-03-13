@@ -1,0 +1,7 @@
+setup.py
+src/directoryhandler.py
+src/directoryhandler.egg-info/PKG-INFO
+src/directoryhandler.egg-info/SOURCES.txt
+src/directoryhandler.egg-info/dependency_links.txt
+src/directoryhandler.egg-info/requires.txt
+src/directoryhandler.egg-info/top_level.txt
