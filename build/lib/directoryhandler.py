@@ -9,10 +9,27 @@ from jsondatahelper import clean_for_storage as standardize
 from lxml import etree as ET
 
 UNKNOWN_FILE_EXTENSION = "unknown"
-DEF_DIR_FILTERS = ["__pycache__", "vscode", "py", "ds_store", ".DS_Store", ".git", ".idea"]
+DEF_DIR_FILTERS = [
+    "__pycache__",
+    "vscode",
+    "py",
+    "ds_store",
+    ".DS_Store",
+    ".git",
+    ".idea",
+]
 
-PLATFORM_SPLIT_CHARS = {"windows":"\\","mac":"/"}
-DEFAULT_PATH_SPLIT_CHAR = "/"
+MAC_SPLIT_CHAR = "/"
+WINDOWS_SPLIT_CHAR = "\\"
+PLATFORM_SPLIT_CHARS = {"windows": WINDOWS_SPLIT_CHAR, "mac": MAC_SPLIT_CHAR}
+DEFAULT_PATH_SPLIT_CHAR = MAC_SPLIT_CHAR
+
+
+def identify_path_split_type():
+    try:
+        return PLATFORM_SPLIT_CHARS[platform.system().lower()]
+    except KeyError:
+        return DEFAULT_PATH_SPLIT_CHAR
 
 
 class DirectoryHandler:
@@ -21,18 +38,9 @@ class DirectoryHandler:
     ):
         self.recognized_file_exts = file_exts
         self.extention_filters = ext_filters
-        self.has_applied_exts = file_exts
         self.root_path = str(directory)
-        self.__identify_path_split_type()
+        self.path_split_char = identify_path_split_type()
         self.scan(directory)
-    
-    def __identify_path_split_type(self):
-
-        try:
-            self.path_split_char = PLATFORM_SPLIT_CHARS[platform.system().lower()]
-        except KeyError:
-            self.path_split_char = DEFAULT_PATH_SPLIT_CHAR
-
 
     def scan(self, directory=os.getcwd()):
         """
@@ -64,16 +72,16 @@ class DirectoryHandler:
         """
         Utility function used to filter out un-wanted/un-needed folders.
         """
-       
+
         for filter_name in self.extention_filters:
             filter_name = filter_name.upper()
             path = path.upper()
-            if filter_name in path or (filter_name in path.split("/")):
+            if filter_name in path or (filter_name in path.split(self.path_split_char)):
                 return False
-                
+
         return True
 
-    def filter_cwd(self, cwd):
+    def filter_directory(self, current_directory):
         """
         Gathers all directories, and sub-directories.
         Filters out non-important directories.
@@ -81,7 +89,7 @@ class DirectoryHandler:
         self.master_dir_list = []
         self.levels = []
 
-        for path in [directory[0] for directory in os.walk(cwd)]:
+        for path in [directory[0] for directory in os.walk(current_directory)]:
 
             if self.passes_filter(path):
                 level = path.count(self.path_split_char)
@@ -93,16 +101,17 @@ class DirectoryHandler:
         self.folder_list = []
         for dir_idx, path in enumerate(self.master_dir_list):
             self.folder_list.append(
-                Directory(path, dir_idx, self.levels[dir_idx], self))
+                Directory(path, dir_idx, self.levels[dir_idx], self)
+            )
 
     def add_file(self, file):
         """
         Adds file to master list.
         Called in file class when file is found.
         """
- 
-        if self.has_applied_exts != []:
-            
+
+        if self.recognized_file_exts != []:
+
             if file.ext and file.ext in self.recognized_file_exts:
 
                 self.verify_extension(file.ext)
@@ -112,7 +121,7 @@ class DirectoryHandler:
 
                 self.verify_extension(UNKNOWN_FILE_EXTENSION)
                 self.organized_files[UNKNOWN_FILE_EXTENSION].append(file)
-        
+
         elif self.passes_filter(file.path):
 
             self.verify_extension(file.ext)
@@ -144,7 +153,7 @@ class DirectoryHandler:
                 os.makedirs(path)
                 created = True
         elif name:
-            path = self.root_path + "/" + name
+            path = self.root_path + self.path_split_char + name
             if not self.exists(path):
                 os.makedirs(path)
                 created = True
@@ -158,7 +167,7 @@ class DirectoryHandler:
         else:
             path = self.root_path
 
-        file_path = path + "/" + file_name
+        file_path = path + self.path_split_char + file_name
 
         if file_name.split(".")[1] == "json":
             with open(file_path, "w+", encoding="utf-8") as f:
@@ -197,7 +206,7 @@ class DirectoryHandler:
 
     def find_files_by_name(self, file_name_to_find, return_first_found=False):
         found_files = []
-        if file_name_to_find:   
+        if file_name_to_find:
             split_file_name = file_name_to_find.split(".")
             if len(split_file_name) == 2:
                 name = split_file_name[0]
@@ -270,14 +279,13 @@ class DirectoryHandler:
         return None
 
 
-
-
 class File:
     def __init__(self, file_string, path, handler_reference):
         self.file_string = file_string
         self.name, self.ext = self.check_for_file_extention(file_string)
-        self.path = str(path) + "/" + file_string
+        self.path = str(path) + +file_string
         self.handler_reference = handler_reference
+        self.path_split_char = self.handler_reference.path_split_char
         self.handler_reference.add_file(self)
         self.associations = {}
 
@@ -297,7 +305,10 @@ class File:
             if data:
                 with open(self.path, "w+", encoding="utf-8") as f:
                     json.dump(
-                        standardize(data), f, ensure_ascii=True, indent=4,
+                        standardize(data),
+                        f,
+                        ensure_ascii=True,
+                        indent=4,
                     )
         else:
             print("Can't write to that file format!")
@@ -330,7 +341,10 @@ class File:
             with open(self.path, "r+") as f:
                 f.seek(0)  # rewind
                 json.dump(
-                    standardize(new_data), f, ensure_ascii=True, indent=4,
+                    standardize(new_data),
+                    f,
+                    ensure_ascii=True,
+                    indent=4,
                 )
                 f.truncate()
 
@@ -340,7 +354,7 @@ class File:
     def to_json(self, output_dir):
 
         if self.associations:
-            new_json_name = output_dir + "/" + self.name + ".json"
+            new_json_name = output_dir + self.path_split_char + self.name + ".json"
             association_collection = {}
 
             for association_name, dictionary in self.associations.items():
@@ -367,7 +381,7 @@ class CsvFile:
             self.__build_by_file_obj(file)
 
     def __build_by_path(self, file_path):
-        self.file_string = file_path.split("/")[-1]
+        self.file_string = file_path.split(self.path_split_char)[-1]
         self.name, self.ext = self.file_string.split(".")
         self.path = file_path
         # self.starting_row = starting_row
@@ -420,9 +434,6 @@ def convert_bytes(loaded_json):
     return loaded_json
 
 
-
-
-
 class Directory:
     def __init__(self, path, index, level, handler_reference):
         self.children = []
@@ -430,7 +441,8 @@ class Directory:
         self.index = index
         self.level = level
         self.handler_reference = handler_reference
-        self.name = path.split("/")[-1]
+        self.path_split_char = self.handler_reference.path_split_char
+        self.name = path.split(self.path_split_char)[-1]
         self.files = self.gather_files()
         self.parent = self.get_parent_folder_name()
         self.gather_children_folders()
@@ -456,7 +468,9 @@ class Directory:
         # ]
 
     def get_parent_folder_name(self):
-        return self.path.replace("/" + self.name, "").split("/")[-1]
+        return self.path.replace(self.path_split_char + self.name, "").split(
+            self.path_split_char
+        )[-1]
 
     def find_folder_by_name(self, folder_name):
         for folder in self.children:
